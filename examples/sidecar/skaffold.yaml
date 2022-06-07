@@ -1,0 +1,10 @@
+apiVersion: skaffold/v2beta28
+kind: Config
+metadata:
+  name: neo4j-monitoring-demo
+
+deploy:
+  kustomize:
+    paths:
+    - .
+
