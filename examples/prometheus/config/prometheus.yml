@@ -1,0 +1,8 @@
+# A scrape configuration containing the Neo4j endpoint to scrape:
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'neo4j'
+    scrape_interval: 10s
+    static_configs:
+    # target: ip address of the Neo4j server
+    - targets: ['neo4j:2004']

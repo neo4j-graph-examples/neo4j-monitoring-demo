@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+  neo4j:
+    image: neo4j:enterprise
+    env_file:
+      - .env.neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+      - "2004:2004"
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${PWD}/config:/config
+      - ${PWD}/config/prometheus.yml:/etc/prometheus/prometheus.yml
+    
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+
