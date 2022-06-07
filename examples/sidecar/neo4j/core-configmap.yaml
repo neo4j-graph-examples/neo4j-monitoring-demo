@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-neo4j-core-config
+data:
+ NEO4J_dbms_logs_default__format: JSON
+ NEO4J_dbms_directories_metrics: "/data/metrics"
+ NEO4J_metrics_enabled: "true"
+ NEO4J_metrics_csv_interval: "30s"
+ NEO4J_metrics_csv_rotation_keep__number: "7"
+ NEO4J_metrics_csv_rotation_size: "10M"

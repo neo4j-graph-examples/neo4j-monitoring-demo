@@ -1,0 +1,136 @@
+---
+# Source: neo4j/templates/readreplicas-statefulset.yaml
+# The ReadReplica deployment only happens for clustered installs.
+apiVersion: "apps/v1"
+kind: StatefulSet
+metadata:
+  name: "neo4j-neo4j-replica"
+  labels:
+    app.kubernetes.io/managed-by: "Helm"
+    app.kubernetes.io/instance: "neo4j"
+    helm.sh/chart: neo4j-4.4.5
+    app.kubernetes.io/name: neo4j
+    app.kubernetes.io/component: replica
+spec:
+  podManagementPolicy: Parallel
+  serviceName: "neo4j-neo4j-replica"
+  replicas: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neo4j
+      app.kubernetes.io/instance: "neo4j"
+      app.kubernetes.io/component: replica
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: "Helm"
+        app.kubernetes.io/instance: "neo4j"
+        helm.sh/chart: "neo4j-4.4.5"
+        app.kubernetes.io/name: neo4j
+        app.kubernetes.io/component: replica
+    spec:
+      serviceAccountName: neo4j-neo4j-sa
+      automountServiceAccountToken: true
+      # High value permits checkpointing on Neo4j shutdown.  See: https://neo4j.com/developer/kb/checkpointing-and-log-pruning-interactions/
+      terminationGracePeriodSeconds: 300
+      containers:
+      - name: neo4j
+        image: "neo4j:4.4.5-enterprise"
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+                    {}
+        # Most pod config is factored into a different configMap, which is user overrideable.
+        envFrom:
+          - configMapRef:
+              name: neo4j-neo4j-common-config
+          - configMapRef:
+              name: neo4j-neo4j-replica-config
+        env:
+          - name: NEO4J_SECRETS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: neo4j-neo4j-secrets
+                key: neo4j-password
+        command:
+          - "/bin/bash"
+          - "-c"
+          - |
+            export replica_idx=$(hostname | sed 's|.*-||')
+
+            # Processes key configuration elements and exports env vars we need.
+            . /helm-init/init.sh
+
+            # These settings are *not* overrideable, because they must match the addresses the
+            # core members see to avoid akka rejections.
+            export NEO4J_causal__clustering_discovery__advertised__address=$HOST:5000
+            export NEO4J_causal__clustering_transaction__advertised__address=$HOST:6000
+            export NEO4J_causal__clustering_raft__advertised__address=$HOST:7000
+            export NEO4J_dbms_routing_advertised__address=$HOST:7688
+
+            echo "Starting Neo4j READ_REPLICA $replica_idx on $HOST"
+            exec /docker-entrypoint.sh "neo4j"
+        ports:
+        - containerPort: 5000
+          name: tcp-discovery
+        - containerPort: 7000
+          name: tcp-raft
+        - containerPort: 6000
+          name: tcp-tx
+        - containerPort: 7474
+          name: tcp-browser
+        - containerPort: 7687
+          name: tcp-bolt
+        - containerPort: 7688
+          name: tcp-boltrouting
+        - containerPort: 2004
+          name: tcp-prometheus
+        - containerPort: 3637
+          name: jmx
+        volumeMounts:
+        - name: init-script
+          mountPath: /helm-init
+        - name: plugins
+          mountPath: /plugins
+        - name: datadir
+          mountPath: "/data"
+        startupProbe:
+          failureThreshold: 2000
+          periodSeconds: 25
+          tcpSocket:
+            port: 7687
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          tcpSocket:
+            port: 7687
+          timeoutSeconds: 2
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 300
+          periodSeconds: 10
+          tcpSocket:
+            port: 7687
+          timeoutSeconds: 2
+        resources:
+          {}
+      initContainers:
+      
+      securityContext:
+        {}
+      volumes:
+        - name: init-script
+          configMap:
+            name: "neo4j-init-script"
+        - name: plugins
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir
+        annotations:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "1Ti" # if not standalone mode

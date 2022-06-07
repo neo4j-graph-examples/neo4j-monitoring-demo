@@ -1,0 +1,27 @@
+apiVersion: "apps/v1"
+kind: StatefulSet
+metadata:
+  name: "neo4j-neo4j-core"
+spec:
+  template:
+    spec:
+      containers:
+      - name: fluentd-sidecar
+        image: fluent/fluentd-kubernetes-daemonset:v1-debian-elasticsearch
+        volumeMounts:
+          - name: fluentd-config
+            mountPath: /fluentd/etc/fluent.conf
+            subPath: fluent.conf
+          - name: datadir
+            mountPath: /data
+      - name: neo4j-neo4j
+        env:
+         - name: NEO4J_dbms_logs_default__format
+           value: json
+      volumes:
+        - name: fluentd-config
+          configMap:
+            name: fluentd-config
+
+
+
