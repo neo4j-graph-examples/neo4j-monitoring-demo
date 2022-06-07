@@ -9,6 +9,7 @@ services:
       - "7474:7474"
       - "7687:7687"
       - "2004:2004"
+      - "3637:3637"
   prometheus:
     image: prom/prometheus
     ports:
@@ -21,4 +22,7 @@ services:
     image: grafana/grafana
     ports:
       - 3000:3000
+    # volumes:
+    #   - ./grafana/storage:/var/lib/grafana
+    #   - ./grafana/provisioning/:/etc/grafana/provisioning/
 
